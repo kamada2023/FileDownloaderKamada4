@@ -2,12 +2,17 @@ package jp.co.abs.filedownloaderkamada4
 
 import android.annotation.SuppressLint
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -23,23 +28,51 @@ fun HistoryScreen() {
     //端末のスクリーンサイズ取得
     val imageWidth = (LocalConfiguration.current.screenWidthDp / 3).dp
     val context = LocalContext.current
+    Log.d("imageWidth","$imageWidth")
     Column {
+        val options = BitmapFactory.Options()
+//        val boundsStream = context.contentResolver.openInputStream(imageUri)
+//        options.inJustDecodeBounds = true
+//        BitmapFactory.decodeStream(boundsStream, null, options)
+//        boundsStream?.close()
+//        if ( options.outHeight != 0 ) {
+//            // we've got bounds
+//            val widthSample = options.outWidth / (LocalConfiguration.current.screenWidthDp / 3)
+//            val heightSample = options.outHeight / (LocalConfiguration.current.screenWidthDp / 3)
+//            Log.d("width-height", "width:$widthSample, height:$heightSample")
+//            val sample = min(widthSample, heightSample)
+//            if (sample > 1) {
+//                options.inSampleSize = sample
+//            }
+//        }
         val imageBitmap =
             try {
-                val inputStream = context.contentResolver.openInputStream(imageUri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
+                options.inJustDecodeBounds = false
+                options.inMutable = true
+                val decodeStream = context.contentResolver.openInputStream(imageUri)
+                val bitmap = BitmapFactory.decodeStream(decodeStream, null, options)
+                decodeStream?.close()
                 bitmap?.asImageBitmap()
             } catch (e: Exception) {
                 // エラー処理
                 e.printStackTrace()
                 null
             }
-        Image(
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit,
-            bitmap = imageBitmap!!,
-            contentDescription = "Internal Storage Image"
-        )
+        if(imageBitmap != null){
+            Image(
+                modifier = Modifier.size(imageWidth),
+                contentScale = ContentScale.Crop,
+                bitmap = imageBitmap,
+                contentDescription = "Internal Storage Image"
+            )
+        }else{
+            Box(modifier = Modifier.size(imageWidth)){
+                Text(
+                    text = "NoImage",
+                    modifier = Modifier.fillMaxSize().background(color = Color.White)
+                )
+            }
+        }
     }
 }
 
@@ -65,46 +98,5 @@ fun HistoryScreen() {
 //    }
 //
 //    cursor?.close()
-
-//    val imageBitmap =
-//        try {
-////            val boundsStream = context.contentResolver.openInputStream(imageUri)
-//            val options = BitmapFactory.Options()
-////                options.inJustDecodeBounds = true
-////                var bitmap = BitmapFactory.decodeStream(boundsStream, null, options)
-////            boundsStream?.close()
-//            val density = LocalDensity.current
-//            with(density) {
-//                val px = imageWidth.toPx()
-//                if ( options.outHeight != 0 ) {
-//                    // we've got bounds
-//                    val widthSample = px
-//                    val heightSample = px
-//                    val sample = min(widthSample, heightSample)
-//                    if (sample > 1) {
-//                        options.inSampleSize = sample.toInt()
-//                    }
-//                }
-//            }
-//
-//            options.inJustDecodeBounds = false
-//            val decodeStream = context.contentResolver.openInputStream(imageUri)
-//            val bitmap = BitmapFactory.decodeStream(decodeStream, null, options)
-//            decodeStream?.close()
-//            bitmap?.asImageBitmap()
-//        } catch (e: Exception) {
-//            // エラー処理
-//            e.printStackTrace()
-//            null
-//        }
-
-//    Box (modifier = Modifier.fillMaxSize()){
-//
-//        Image(
-//            bitmap = imageBitmap!!,
-//            contentDescription = "thumbnail"
-//            // modifier = Modifier.size(imageWidth.dp),
-//            // contentScale = ContentScale.Crop
-//        )
 //    }
 //}

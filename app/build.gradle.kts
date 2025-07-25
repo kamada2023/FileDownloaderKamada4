@@ -53,8 +53,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     //coil
-    implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
+    //implementation(libs.coil.compose)
+    //implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
