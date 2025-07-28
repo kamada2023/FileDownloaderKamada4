@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -46,7 +48,9 @@ fun HistoryScreen() {
         MediaStore.Images.Media.EXTERNAL_CONTENT_URI
     }
 
+    val selection = MediaStore.Images.ImageColumns.RELATIVE_PATH + " = ?"
     val path = Environment.DIRECTORY_PICTURES + "/Kamada_Picture/"
+    val selectionArgs = arrayOf(path)
 
     val imageUris = remember { mutableListOf<Uri>() }
     val contentResolver = context.contentResolver
@@ -55,8 +59,8 @@ fun HistoryScreen() {
             contentResolver.query(
                 it,
                 null,
-                null,
-                null,
+                selection,
+                selectionArgs,
                 null
             )
         }
@@ -82,7 +86,7 @@ fun HistoryScreen() {
         println(url)
     }
 
-    Column {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         //val options = BitmapFactory.Options()
 //        val boundsStream = context.contentResolver.openInputStream(imageUri)
 //        options.inJustDecodeBounds = true
@@ -98,38 +102,40 @@ fun HistoryScreen() {
 //                options.inSampleSize = sample
 //            }
 //        }
-
-        for (urls in imageUris){
-            val imageBitmap =
-                try {
-                    // options.inJustDecodeBounds = true
-                    // options.inMutable = true
-                    //val decodeStream = context.contentResolver.openInputStream(imageUri)
-                    //val bitmap = BitmapFactory.decodeStream(decodeStream, null, options)
-                    val inputStream = context.contentResolver.openInputStream(urls)
-                    val bitmap = BitmapFactory.decodeStream(inputStream)
-                    inputStream?.close()
-                    bitmap?.asImageBitmap()
-                } catch (e: Exception) {
-                    // エラー処理
-                    e.printStackTrace()
-                    null
-                }
-            if(imageBitmap != null){
-                Image(
-                    modifier = Modifier.size(imageWidth),
-                    contentScale = ContentScale.Crop,
-                    bitmap = imageBitmap,
-                    contentDescription = "Internal Storage Image"
-                )
-            }else{
-                Box(modifier = Modifier.size(imageWidth)){
-                    Text(
-                        text = "NoImage",
-                        modifier = Modifier.fillMaxSize().background(color = Color.White)
-                    )
+        var images = 0
+        while (images < imageUris.size){
+            Row {
+                for (cnt in 1..3){
+                    if (imageUris.size == images+cnt) break
+                    val imageBitmap =
+                        try {
+                            val inputStream = context.contentResolver.openInputStream(imageUris[images+cnt])
+                            val bitmap = BitmapFactory.decodeStream(inputStream)
+                            inputStream?.close()
+                            bitmap?.asImageBitmap()
+                        } catch (e: Exception) {
+                            // エラー処理
+                            e.printStackTrace()
+                            null
+                        }
+                    if(imageBitmap != null){
+                        Image(
+                            modifier = Modifier.size(imageWidth),
+                            contentScale = ContentScale.Crop,
+                            bitmap = imageBitmap,
+                            contentDescription = "Internal Storage Image"
+                        )
+                    }else{
+                        Box(modifier = Modifier.size(imageWidth)){
+                            Text(
+                                text = "NoImage",
+                                modifier = Modifier.fillMaxSize().background(color = Color.White)
+                            )
+                        }
+                    }
                 }
             }
+            images += 3
         }
     }
 }
