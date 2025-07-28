@@ -275,6 +275,9 @@ fun downloadImage(urlEntered:String, showProgressBer: MutableState<Boolean>, con
             val contentResolver = context.contentResolver
             val contentUri = contentResolver.insert(uri, contentValues)
             Log.d("File","$uri")
+            Log.d("File","$contentUri")
+            val path = Environment.DIRECTORY_PICTURES + "/Kamada_Picture/"
+            Log.d("PATH", path)
             //※2 ファイルを書き込む
             contentResolver.openFileDescriptor(contentUri!!, "w", null).use {
                 FileOutputStream(it!!.fileDescriptor).use { output ->
@@ -373,9 +376,6 @@ fun FileDownloaderScreen() {
     ) {
         Button(
             onClick = {
-                //ギャラリーに遷移するIntentの作成
-                //val intent = Intent(Intent.ACTION_PICK)
-                //intent.type = "image/*"
                 //ギャラリーへ遷移
                 launcher.launch("image/*")
                 //testLauncher.launch(arrayOf("image/*"))
