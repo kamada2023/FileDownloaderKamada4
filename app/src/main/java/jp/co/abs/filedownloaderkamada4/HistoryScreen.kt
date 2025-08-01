@@ -2,22 +2,21 @@ package jp.co.abs.filedownloaderkamada4
 
 import android.annotation.SuppressLint
 import android.content.ContentUris
-import android.content.ContentValues
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -28,11 +27,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.io.IOException
-
+import kotlin.math.ceil
 
 
 @SuppressLint("ConfigurationScreenWidthHeight", "CoroutineCreationDuringComposition")
@@ -40,6 +36,7 @@ import java.io.IOException
 fun HistoryScreen() {
     //端末のスクリーンサイズ取得
     val imageWidth = (LocalConfiguration.current.screenWidthDp / 3).dp
+    val imageHeight = LocalConfiguration.current.screenHeightDp
     val context = LocalContext.current
 
     val uri: Uri = if (Build.VERSION.SDK_INT >= 29) {
@@ -82,34 +79,29 @@ fun HistoryScreen() {
         e.printStackTrace()
     }
 
-    for (url in imageUris){
-        println(url)
-    }
-
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    LazyColumn(modifier = Modifier.height(imageHeight.dp)) {
         //val options = BitmapFactory.Options()
-//        val boundsStream = context.contentResolver.openInputStream(imageUri)
-//        options.inJustDecodeBounds = true
-//        BitmapFactory.decodeStream(boundsStream, null, options)
-//        boundsStream?.close()
-//        if ( options.outHeight != 0 ) {
-//            // we've got bounds
-//            val widthSample = options.outWidth / (LocalConfiguration.current.screenWidthDp / 3)
-//            val heightSample = options.outHeight / (LocalConfiguration.current.screenWidthDp / 3)
-//            Log.d("width-height", "width:$widthSample, height:$heightSample")
-//            val sample = min(widthSample, heightSample)
-//            if (sample > 1) {
-//                options.inSampleSize = sample
-//            }
-//        }
-        var images = 0
-        while (images < imageUris.size){
+        //val boundsStream = context.contentResolver.openInputStream(imageUri)
+        //options.inJustDecodeBounds = true
+        //BitmapFactory.decodeStream(boundsStream, null, options)
+        //boundsStream?.close()
+        //if ( options.outHeight != 0 ) {
+        //    // we've got bounds
+        //    val widthSample = options.outWidth / (LocalConfiguration.current.screenWidthDp / 3)
+        //    val heightSample = options.outHeight / (LocalConfiguration.current.screenWidthDp / 3)
+        //    Log.d("width-height", "width:$widthSample, height:$heightSample")
+        //    val sample = min(widthSample, heightSample)
+        //    if (sample > 1) {
+        //        options.inSampleSize = sample
+        //    }
+        //}
+        val imageLists = ceil(imageUris.size.toDouble() / 3).toInt()
+        items(imageLists){ imageList ->
             Row {
-                for (cnt in 1..3){
-                    if (imageUris.size == images+cnt) break
+                if (imageUris.size >= imageList*3){
                     val imageBitmap =
                         try {
-                            val inputStream = context.contentResolver.openInputStream(imageUris[images+cnt])
+                            val inputStream = context.contentResolver.openInputStream(imageUris[imageList*3])
                             val bitmap = BitmapFactory.decodeStream(inputStream)
                             inputStream?.close()
                             bitmap?.asImageBitmap()
@@ -120,10 +112,18 @@ fun HistoryScreen() {
                         }
                     if(imageBitmap != null){
                         Image(
-                            modifier = Modifier.size(imageWidth),
+                            modifier = Modifier.size(imageWidth)
+                                .clickable {
+                                    val shareIntent = Intent().apply {
+                                        action = Intent.ACTION_VIEW
+                                        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                        setDataAndType(imageUris[imageList * 3],"image/*")
+                                    }
+                                    context.startActivity(shareIntent)
+                                },
                             contentScale = ContentScale.Crop,
                             bitmap = imageBitmap,
-                            contentDescription = "Internal Storage Image"
+                            contentDescription = "${imageUris[imageList*3]}",
                         )
                     }else{
                         Box(modifier = Modifier.size(imageWidth)){
@@ -134,8 +134,79 @@ fun HistoryScreen() {
                         }
                     }
                 }
+                if (imageUris.size >= imageList*3 + 1) {
+                    val imageBitmap =
+                        try {
+                            val inputStream =
+                                context.contentResolver.openInputStream(imageUris[imageList * 3 + 1])
+                            val bitmap = BitmapFactory.decodeStream(inputStream)
+                            inputStream?.close()
+                            bitmap?.asImageBitmap()
+                        } catch (e: Exception) {
+                            // エラー処理
+                            e.printStackTrace()
+                            null
+                        }
+                    if (imageBitmap != null) {
+                        Image(
+                            modifier = Modifier.size(imageWidth)
+                                .clickable {
+                                    val shareIntent = Intent().apply {
+                                        action = Intent.ACTION_VIEW
+                                        setDataAndType(imageUris[imageList * 3 + 1],"image/*")
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent,null))
+                                },
+                            contentScale = ContentScale.Crop,
+                            bitmap = imageBitmap,
+                            contentDescription = "${imageUris[imageList * 3 + 1]}",
+                        )
+                    } else {
+                        Box(modifier = Modifier.size(imageWidth)) {
+                            Text(
+                                text = "NoImage",
+                                modifier = Modifier.fillMaxSize().background(color = Color.White)
+                            )
+                        }
+                    }
+                }
+                if (imageUris.size >= imageList*3 + 2) {
+                    val imageBitmap =
+                        try {
+                            val inputStream =
+                                context.contentResolver.openInputStream(imageUris[imageList * 3 + 2])
+                            val bitmap = BitmapFactory.decodeStream(inputStream)
+                            inputStream?.close()
+                            bitmap?.asImageBitmap()
+                        } catch (e: Exception) {
+                            // エラー処理
+                            e.printStackTrace()
+                            null
+                        }
+                    if (imageBitmap != null) {
+                        Image(
+                            modifier = Modifier.size(imageWidth)
+                                .clickable {
+                                    val shareIntent = Intent().apply {
+                                        action = Intent.ACTION_VIEW
+                                        setDataAndType(imageUris[imageList * 3 + 2],"image/*")
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent,null))
+                                },
+                            contentScale = ContentScale.Crop,
+                            bitmap = imageBitmap,
+                            contentDescription = "${imageUris[imageList * 3 + 2]}",
+                        )
+                    } else {
+                        Box(modifier = Modifier.size(imageWidth)) {
+                            Text(
+                                text = "NoImage",
+                                modifier = Modifier.fillMaxSize().background(color = Color.White)
+                            )
+                        }
+                    }
+                }
             }
-            images += 3
         }
     }
 }

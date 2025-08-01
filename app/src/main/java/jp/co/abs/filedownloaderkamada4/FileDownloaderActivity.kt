@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -13,7 +14,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -94,6 +94,7 @@ var imageUri: Uri = if (Build.VERSION.SDK_INT >= 29) {
     MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 }
 const val REQUEST_READ_MEDIA_IMAGES = 1
+const val REQUEST_READ_EXTERNAL_GROUP = 2
 
 class FileDownloaderActivity : ComponentActivity() {
 
@@ -144,7 +145,9 @@ fun FileDownloaderApp(){
         NavHost(
             navController = navController,
             startDestination = Nav.FileDownloaderScreen.name,
-            modifier = Modifier.fillMaxSize().padding(innerPadding)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             composable(route = Nav.FileDownloaderScreen.name) { FileDownloaderScreen() }
             composable(route = Nav.HistoryScreen.name) { HistoryScreen() }
@@ -191,6 +194,13 @@ fun PermissionDialog(
                                             REQUEST_READ_MEDIA_IMAGES
                                         )
                                     }
+                                }else{
+                                    // 権限が付与されていない場合はリクエストを行う
+                                    ActivityCompat.requestPermissions(
+                                        context as Activity,
+                                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                                        REQUEST_READ_EXTERNAL_GROUP
+                                    )
                                 }
                                 openAlertDialog.value = false
                             } catch (error: SecurityException) {
@@ -274,10 +284,7 @@ fun downloadImage(urlEntered:String, showProgressBer: MutableState<Boolean>, con
 
             val contentResolver = context.contentResolver
             val contentUri = contentResolver.insert(uri, contentValues)
-            Log.d("File","$uri")
-            Log.d("File","$contentUri")
             val path = Environment.DIRECTORY_PICTURES + "/Kamada_Picture/"
-            Log.d("PATH", path)
             //※2 ファイルを書き込む
             contentResolver.openFileDescriptor(contentUri!!, "w", null).use {
                 FileOutputStream(it!!.fileDescriptor).use { output ->
@@ -304,8 +311,20 @@ fun downloadImage(urlEntered:String, showProgressBer: MutableState<Boolean>, con
             }
         } catch (e: IOException) {
             e.printStackTrace()
+            withContext(Dispatchers.Main) {
+                // プログレスバーを非表示
+                showProgressBer.value = false
+                showDownloadImage.value = true
+                Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
+            }
         } catch (e: MalformedURLException) {
             e.printStackTrace()
+            withContext(Dispatchers.Main) {
+                // プログレスバーを非表示
+                showProgressBer.value = false
+                showDownloadImage.value = true
+                Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }
@@ -332,15 +351,15 @@ fun FileDownloaderScreen() {
             Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
         }
     }
-//    val testLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){ uri: Uri? ->
-//        if (uri != null) {
-//            imageUri = uri
-//            showDownloadImage.value = true
-//        }
-//        if (uri != null){
-//            Toast.makeText(context, notifyImageAcquisition, Toast.LENGTH_SHORT).show()
-//        }
-//    }
+    val testLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){ uri: Uri? ->
+        if (uri != null) {
+            imageUri = uri
+            showDownloadImage.value = true
+        }
+        if (uri != null){
+            Toast.makeText(context, notifyImageAcquisition, Toast.LENGTH_SHORT).show()
+        }
+    }
     val exitTheApplication = remember { mutableStateOf(false) }
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
@@ -377,8 +396,11 @@ fun FileDownloaderScreen() {
         Button(
             onClick = {
                 //ギャラリーへ遷移
-                launcher.launch("image/*")
-                //testLauncher.launch(arrayOf("image/*"))
+                val shareIntent = Intent().apply {
+                    action = Intent.ACTION_VIEW
+                    type = "image/*"
+                }
+                context.startActivity(Intent.createChooser(shareIntent,null))
             },
             modifier = Modifier.weight(0.8f),
             shape = MaterialTheme.shapes.small
@@ -406,10 +428,14 @@ fun FileDownloaderScreen() {
                 Text(text = "ダウンロード開始")
             }
         }
-        Box(modifier = Modifier.weight(10f).fillMaxWidth()){
+        Box(modifier = Modifier
+            .weight(10f)
+            .fillMaxWidth()){
             if (showProgressBer.value){
                 CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center).width(64.dp),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .width(64.dp),
                     color = MaterialTheme.colorScheme.secondary,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
@@ -440,7 +466,9 @@ fun FileDownloaderScreen() {
             }
         }
         Button(
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             onClick = {
                 showDownloadImage.value = false
                 url = ""
