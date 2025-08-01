@@ -16,10 +16,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -87,12 +85,6 @@ import java.util.Date
 private var fileName = ""
 private var notifySuccess = "ダウンロードが完了しました"
 private var notifyFailure = "画像取得に失敗しました"
-private var notifyImageAcquisition = "画像を取得しました"
-var imageUri: Uri = if (Build.VERSION.SDK_INT >= 29) {
-    MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-} else {
-    MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-}
 const val REQUEST_READ_MEDIA_IMAGES = 1
 const val REQUEST_READ_EXTERNAL_GROUP = 2
 
@@ -234,7 +226,13 @@ private fun String.isGrantedPermission(context: Context): Boolean {
 }
 
 @SuppressLint("SimpleDateFormat", "CoroutineCreationDuringComposition")
-fun downloadImage(urlEntered:String, showProgressBer: MutableState<Boolean>, context: Context, showDownloadImage: MutableState<Boolean>) {
+fun downloadImage(
+    urlEntered: String,
+    showProgressBer: MutableState<Boolean>,
+    context: Context,
+    showDownloadImage: MutableState<Boolean>,
+    updateUri: (Uri) -> Unit
+) {
     val stringUrl: String = urlEntered
     if (stringUrl.isEmpty()){
         Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
@@ -284,13 +282,13 @@ fun downloadImage(urlEntered:String, showProgressBer: MutableState<Boolean>, con
 
             val contentResolver = context.contentResolver
             val contentUri = contentResolver.insert(uri, contentValues)
-            val path = Environment.DIRECTORY_PICTURES + "/Kamada_Picture/"
+
             //※2 ファイルを書き込む
             contentResolver.openFileDescriptor(contentUri!!, "w", null).use {
                 FileOutputStream(it!!.fileDescriptor).use { output ->
                     bmp.compress(Bitmap.CompressFormat.PNG, 100, output)
                 }
-                imageUri = contentUri
+                updateUri(contentUri)
             }
 
             contentValues.clear()
@@ -311,20 +309,8 @@ fun downloadImage(urlEntered:String, showProgressBer: MutableState<Boolean>, con
             }
         } catch (e: IOException) {
             e.printStackTrace()
-            withContext(Dispatchers.Main) {
-                // プログレスバーを非表示
-                showProgressBer.value = false
-                showDownloadImage.value = true
-                Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
-            }
         } catch (e: MalformedURLException) {
             e.printStackTrace()
-            withContext(Dispatchers.Main) {
-                // プログレスバーを非表示
-                showProgressBer.value = false
-                showDownloadImage.value = true
-                Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
-            }
         }
     }
 }
@@ -340,32 +326,15 @@ fun FileDownloaderScreen() {
     var url by remember { mutableStateOf("") }
     val context = LocalContext.current
     val showDownloadImage = remember { mutableStateOf(false) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) {
-            imageUri = uri
-            showDownloadImage.value = true
-        }
-        if (uri != null) {
-            Toast.makeText(context, notifyImageAcquisition, Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
-        }
-    }
-    val testLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){ uri: Uri? ->
-        if (uri != null) {
-            imageUri = uri
-            showDownloadImage.value = true
-        }
-        if (uri != null){
-            Toast.makeText(context, notifyImageAcquisition, Toast.LENGTH_SHORT).show()
-        }
-    }
     val exitTheApplication = remember { mutableStateOf(false) }
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
     } else {
         Manifest.permission_group.STORAGE
     }
+    var imageUri by remember { mutableStateOf<Uri>(
+        if (Build.VERSION.SDK_INT >= 29) { MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) }
+        else { MediaStore.Images.Media.EXTERNAL_CONTENT_URI } )}
 
     when {
         openAlertDialog.value ->
@@ -421,7 +390,13 @@ fun FileDownloaderScreen() {
             Button(
                 modifier = Modifier.weight(0.7f),
                 onClick = {
-                    downloadImage(urlEntered = url, showProgressBer = showProgressBer, context = context, showDownloadImage)
+                    downloadImage(
+                        urlEntered = url,
+                        showProgressBer = showProgressBer,
+                        context = context,
+                        showDownloadImage = showDownloadImage,
+                        updateUri = { imageUri = it }
+                    )
                 },
                 shape = MaterialTheme.shapes.small
             ) {
