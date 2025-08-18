@@ -53,6 +53,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -60,8 +61,10 @@ import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.app.ActivityCompat
@@ -87,6 +90,9 @@ private var notifySuccess = "ダウンロードが完了しました"
 private var notifyFailure = "画像取得に失敗しました"
 const val REQUEST_READ_MEDIA_IMAGES = 1
 const val REQUEST_READ_EXTERNAL_GROUP = 2
+var imageUri = if (Build.VERSION.SDK_INT >= 29) {
+    MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+} else { MediaStore.Images.Media.EXTERNAL_CONTENT_URI }
 
 class FileDownloaderActivity : ComponentActivity() {
 
@@ -104,13 +110,21 @@ enum class Nav {
     HistoryScreen
 }
 
+enum class ToastStatus {
+    Initialization,
+    NotDisplayed,
+    SuccessNotification,
+    FailureNotification
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun FileDownloaderApp(){
     val navController = rememberNavController()
     var selectedDestination by remember { mutableIntStateOf(Nav.FileDownloaderScreen.ordinal) }
     Scaffold (
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
@@ -219,28 +233,20 @@ fun PermissionDialog(
     }
 }
 
-private fun String.isGrantedPermission(context: Context): Boolean {
-    // checkSelfPermission は PERMISSION_GRANTED or PERMISSION_DENIED のどちらかを返す
-    // そのため checkSelfPermission の戻り値が PERMISSION_GRANTED であれば許可済みになる。
-    return context.checkSelfPermission(this) == PackageManager.PERMISSION_GRANTED
-}
-
 @SuppressLint("SimpleDateFormat", "CoroutineCreationDuringComposition")
 fun downloadImage(
     urlEntered: String,
-    showProgressBer: MutableState<Boolean>,
     context: Context,
-    showDownloadImage: MutableState<Boolean>,
-    updateUri: (Uri) -> Unit
+    showDownloadImage: MutableState<Boolean>
 ) {
     val stringUrl: String = urlEntered
     if (stringUrl.isEmpty()){
-        Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
+        showDownloadImage.value = true
         return
     }
 
     //launchを呼び出す前にプログレスバーを表示
-    showProgressBer.value = true
+    showDownloadImage.value = false
     CoroutineScope(Dispatchers.Default).launch(Dispatchers.IO) {
         try {
             val url = URL(stringUrl)
@@ -288,7 +294,7 @@ fun downloadImage(
                 FileOutputStream(it!!.fileDescriptor).use { output ->
                     bmp.compress(Bitmap.CompressFormat.PNG, 100, output)
                 }
-                updateUri(contentUri)
+                imageUri = contentUri
             }
 
             contentValues.clear()
@@ -303,14 +309,16 @@ fun downloadImage(
             // 処理が終わったら、メインスレッドに切り替える。
             withContext(Dispatchers.Main) {
                 // プログレスバーを非表示
-                showProgressBer.value = false
                 showDownloadImage.value = true
-                Toast.makeText(context, notifySuccess, Toast.LENGTH_SHORT).show()
             }
         } catch (e: IOException) {
             e.printStackTrace()
+            // プログレスバーを非表示
+            showDownloadImage.value = true
         } catch (e: MalformedURLException) {
             e.printStackTrace()
+            // プログレスバーを非表示
+            showDownloadImage.value = true
         }
     }
 }
@@ -319,26 +327,38 @@ fun downloadImage(
 @Composable
 fun FileDownloaderScreen() {
     val openAlertDialog = remember { mutableStateOf(true) }
-    val showProgressBer = remember { mutableStateOf(false) }
     // 親コンポーネントにフォーカスを移動させるのに使う
     val focusRequester = remember { FocusRequester() }
     val interactionSource = remember { MutableInteractionSource() }
+    // URL
     var url by remember { mutableStateOf("") }
-    val context = LocalContext.current
+    // 画像の処理判定
     val showDownloadImage = remember { mutableStateOf(false) }
+    val downloadClick = remember { mutableStateOf(false) }
+    // Toastが表示されたか？判定
+    val toastIsDisplayed = remember { mutableIntStateOf(ToastStatus.Initialization.ordinal) }
+    // アプリの終了判定
     val exitTheApplication = remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
     } else {
         Manifest.permission_group.STORAGE
     }
-    var imageUri by remember { mutableStateOf<Uri>(
-        if (Build.VERSION.SDK_INT >= 29) { MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) }
-        else { MediaStore.Images.Media.EXTERNAL_CONTENT_URI } )}
+    var imageBitmap by remember { mutableStateOf(
+        try {
+            val inputStream = context.contentResolver.openInputStream(imageUri)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            bitmap?.asImageBitmap()
+        } catch (e: Exception) {
+            // エラー処理
+            null
+        }
+    ) }
 
     when {
         openAlertDialog.value ->
-            if (permission.isGrantedPermission(context)){
+            if (context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED){
                 //パーミッションが許可されている
             }else {
                 //パーミッションが不許可である
@@ -381,7 +401,8 @@ fun FileDownloaderScreen() {
             TextField(
                 modifier = Modifier
                     .padding(10.dp)
-                    .weight(1f),
+                    .weight(1f)
+                    .testTag("TextField"),
                 value = url,
                 onValueChange = { url = it },
                 placeholder = { Text(text = "http://") },
@@ -392,11 +413,11 @@ fun FileDownloaderScreen() {
                 onClick = {
                     downloadImage(
                         urlEntered = url,
-                        showProgressBer = showProgressBer,
                         context = context,
-                        showDownloadImage = showDownloadImage,
-                        updateUri = { imageUri = it }
+                        showDownloadImage = showDownloadImage
                     )
+                    downloadClick.value = true
+                    toastIsDisplayed.intValue = ToastStatus.NotDisplayed.ordinal
                 },
                 shape = MaterialTheme.shapes.small
             ) {
@@ -406,17 +427,22 @@ fun FileDownloaderScreen() {
         Box(modifier = Modifier
             .weight(10f)
             .fillMaxWidth()){
-            if (showProgressBer.value){
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .width(64.dp),
-                    color = MaterialTheme.colorScheme.secondary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            // 画像表示判定
+            if(imageBitmap != null){
+                Image(
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                    bitmap = imageBitmap!!,
+                    contentDescription = "Internal Storage Image"
                 )
-            }else {
+            }
+
+            // toast,downloadの終了判定
+            if (toastIsDisplayed.intValue == ToastStatus.NotDisplayed.ordinal || downloadClick.value){
+                // ダウンロードボタンクリック時処理
                 if (showDownloadImage.value) {
-                    val imageBitmap =
+                    // ダウンロード完了時の処理
+                    imageBitmap =
                         try {
                             val inputStream = context.contentResolver.openInputStream(imageUri)
                             val bitmap = BitmapFactory.decodeStream(inputStream)
@@ -426,17 +452,32 @@ fun FileDownloaderScreen() {
                             e.printStackTrace()
                             null
                         }
-                    Image(
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
-                        bitmap = imageBitmap!!,
-                        contentDescription = "Internal Storage Image"
-                    )
+                    if (imageBitmap != null){
+                        if (toastIsDisplayed.intValue == ToastStatus.NotDisplayed.ordinal){
+                            Box(modifier = Modifier.fillMaxSize().testTag("notifySuccess")){
+                                Toast.makeText(context, notifySuccess, Toast.LENGTH_SHORT).show()
+                            }
+                            toastIsDisplayed.intValue = ToastStatus.SuccessNotification.ordinal
+                        }
+                        downloadClick.value = false
+                    }else {
+                        if (toastIsDisplayed.intValue == ToastStatus.NotDisplayed.ordinal){
+                            Box(modifier = Modifier.fillMaxSize().testTag("notifyFailure")){
+                                Toast.makeText(context, notifyFailure, Toast.LENGTH_SHORT).show()
+                            }
+                            toastIsDisplayed.intValue = ToastStatus.FailureNotification.ordinal
+                        }
+                        downloadClick.value = false
+                    }
                 }else{
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ){ }
+                    // プログレスバー表示
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .width(64.dp),
+                        color = MaterialTheme.colorScheme.secondary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    )
                 }
             }
         }
@@ -445,7 +486,7 @@ fun FileDownloaderScreen() {
                 .fillMaxWidth()
                 .weight(1f),
             onClick = {
-                showDownloadImage.value = false
+                imageBitmap = null
                 url = ""
             },
             shape = MaterialTheme.shapes.small
@@ -453,11 +494,4 @@ fun FileDownloaderScreen() {
             Text(text = "Clear")
         }
     }
-}
-
-@Preview(showBackground = true, showSystemUi = false)
-@Composable
-fun GreetingPreview() {
-    //PermissionDialog()
-    //FileDownloaderApp()
 }

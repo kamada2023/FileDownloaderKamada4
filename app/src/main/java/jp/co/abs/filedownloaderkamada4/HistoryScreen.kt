@@ -126,12 +126,7 @@ fun HistoryScreen() {
                             contentDescription = "${imageUris[imageList*3]}",
                         )
                     }else{
-                        Box(modifier = Modifier.size(imageWidth)){
-                            Text(
-                                text = "NoImage",
-                                modifier = Modifier.fillMaxSize().background(color = Color.White)
-                            )
-                        }
+                        Box(modifier = Modifier.size(imageWidth)){ }
                     }
                 }
                 if (imageUris.size >= imageList*3 + 1) {
@@ -162,12 +157,7 @@ fun HistoryScreen() {
                             contentDescription = "${imageUris[imageList * 3 + 1]}",
                         )
                     } else {
-                        Box(modifier = Modifier.size(imageWidth)) {
-                            Text(
-                                text = "NoImage",
-                                modifier = Modifier.fillMaxSize().background(color = Color.White)
-                            )
-                        }
+                        Box(modifier = Modifier.size(imageWidth)) { }
                     }
                 }
                 if (imageUris.size >= imageList*3 + 2) {
@@ -198,12 +188,7 @@ fun HistoryScreen() {
                             contentDescription = "${imageUris[imageList * 3 + 2]}",
                         )
                     } else {
-                        Box(modifier = Modifier.size(imageWidth)) {
-                            Text(
-                                text = "NoImage",
-                                modifier = Modifier.fillMaxSize().background(color = Color.White)
-                            )
-                        }
+                        Box(modifier = Modifier.size(imageWidth)) { }
                     }
                 }
             }
