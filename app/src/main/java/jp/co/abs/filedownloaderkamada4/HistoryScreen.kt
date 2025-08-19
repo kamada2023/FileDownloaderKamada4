@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import java.io.IOException
 import kotlin.math.ceil
@@ -79,7 +80,7 @@ fun HistoryScreen() {
         e.printStackTrace()
     }
 
-    LazyColumn(modifier = Modifier.height(imageHeight.dp)) {
+    LazyColumn(modifier = Modifier.height(imageHeight.dp).testTag("HistoryScreen")) {
         //val options = BitmapFactory.Options()
         //val boundsStream = context.contentResolver.openInputStream(imageUri)
         //options.inJustDecodeBounds = true
@@ -123,7 +124,7 @@ fun HistoryScreen() {
                                 },
                             contentScale = ContentScale.Crop,
                             bitmap = imageBitmap,
-                            contentDescription = "${imageUris[imageList*3]}",
+                            contentDescription = "image_${imageList*3}",
                         )
                     }else{
                         Box(modifier = Modifier.size(imageWidth)){ }
@@ -154,7 +155,7 @@ fun HistoryScreen() {
                                 },
                             contentScale = ContentScale.Crop,
                             bitmap = imageBitmap,
-                            contentDescription = "${imageUris[imageList * 3 + 1]}",
+                            contentDescription = "image_${imageList * 3 + 1}",
                         )
                     } else {
                         Box(modifier = Modifier.size(imageWidth)) { }
@@ -185,7 +186,7 @@ fun HistoryScreen() {
                                 },
                             contentScale = ContentScale.Crop,
                             bitmap = imageBitmap,
-                            contentDescription = "${imageUris[imageList * 3 + 2]}",
+                            contentDescription = "image_${imageList * 3 + 2}",
                         )
                     } else {
                         Box(modifier = Modifier.size(imageWidth)) { }

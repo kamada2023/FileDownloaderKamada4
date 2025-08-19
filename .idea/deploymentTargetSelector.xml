@@ -5,16 +5,19 @@
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
+      <SelectionState runConfigName="downloadProgressTest()">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
       <SelectionState runConfigName="notifyFailedTest()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="downloadSuccessTest()">
+      <SelectionState runConfigName="historyScreenTest()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="notifySuccessTest()">
+      <SelectionState runConfigName="firstScreen()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="downloadTest()">
+      <SelectionState runConfigName="gotoFileDownloaderScreen()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

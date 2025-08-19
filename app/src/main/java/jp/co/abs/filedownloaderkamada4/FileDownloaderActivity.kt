@@ -292,7 +292,7 @@ fun downloadImage(
             //※2 ファイルを書き込む
             contentResolver.openFileDescriptor(contentUri!!, "w", null).use {
                 FileOutputStream(it!!.fileDescriptor).use { output ->
-                    bmp.compress(Bitmap.CompressFormat.PNG, 100, output)
+                    bmp.compress(Bitmap.CompressFormat.JPEG, 100, output)
                 }
                 imageUri = contentUri
             }
@@ -308,19 +308,17 @@ fun downloadImage(
 
             // 処理が終わったら、メインスレッドに切り替える。
             withContext(Dispatchers.Main) {
-                // プログレスバーを非表示
-                showDownloadImage.value = true
+
             }
         } catch (e: IOException) {
             e.printStackTrace()
-            // プログレスバーを非表示
-            showDownloadImage.value = true
         } catch (e: MalformedURLException) {
             e.printStackTrace()
-            // プログレスバーを非表示
-            showDownloadImage.value = true
         }
     }
+    // プログレスバーを非表示
+    showDownloadImage.value = true
+    return
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "Range")
@@ -373,6 +371,7 @@ fun FileDownloaderScreen() {
 
     Column(
         modifier = Modifier
+            .testTag("FileDownloaderScreen")
             .clickable(
                 interactionSource = interactionSource,
                 enabled = true,
@@ -473,6 +472,7 @@ fun FileDownloaderScreen() {
                     // プログレスバー表示
                     CircularProgressIndicator(
                         modifier = Modifier
+                            .testTag("ProgressBar")
                             .align(Alignment.Center)
                             .width(64.dp),
                         color = MaterialTheme.colorScheme.secondary,
