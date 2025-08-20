@@ -29,12 +29,6 @@ class HistoryScreenTest {
         composeTestRule.setContent {
             FileDownloaderApp()
         }
-        if (composeTestRule.onNodeWithText("許可する").isDisplayed()){
-            composeTestRule.onNodeWithText("ストレージへの\nアクセス許可").assertExists()
-            composeTestRule.onNodeWithText("許可する").assertExists()
-            composeTestRule.onNodeWithText("しない").assertExists()
-            composeTestRule.onNodeWithText("許可する").performClick()
-        }
 
         // 許可するボタンのindexを取得
         fun getAllowButtonIndex() =
@@ -57,8 +51,6 @@ class HistoryScreenTest {
         }
         // 動かせるまで待機
         composeTestRule.waitForIdle()
-        // 画面終了を確認
-        composeTestRule.onNodeWithText("許可する").assertDoesNotExist()
         //履歴画面を表示
         composeTestRule.onNodeWithContentDescription("履歴",useUnmergedTree = true).performClick()
         composeTestRule.onNodeWithTag("HistoryScreen").assertIsDisplayed()

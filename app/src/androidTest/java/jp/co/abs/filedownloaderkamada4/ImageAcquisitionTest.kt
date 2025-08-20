@@ -12,7 +12,6 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
-//import androidx.test.rule.GrantPermissionRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,9 +28,7 @@ class ImageAcquisitionTest {
         composeTestRule.setContent {
             FileDownloaderApp()
         }
-        composeTestRule.onNodeWithText("許可する").assertExists()
-        composeTestRule.onNodeWithText("しない").assertExists()
-        composeTestRule.onNodeWithText("許可する").performClick()
+
         // 許可するボタンのindexを取得
         fun getAllowButtonIndex() =
             if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
@@ -54,31 +51,18 @@ class ImageAcquisitionTest {
         // 動かせるまで待機
         composeTestRule.waitForIdle()
         // 画面終了を確認
-        composeTestRule.onNodeWithText("許可する").assertDoesNotExist()
         composeTestRule.onNodeWithTag("TextField").assertExists()
 
     }
 
     @Test
     fun keyboardTest(){
-        appTest()
-        //キーボード表示
-        composeTestRule.onNodeWithTag("TextField").performClick()
-        //キーボード非表示
-        composeTestRule.onNodeWithTag("FileDownloaderScreen").performClick()
-        composeTestRule.waitForIdle()
-    }
-
-    @Test
-    fun downloadProgressTest(){
         // UiDeviceのインスタンス化
         val device = UiDevice.getInstance(getInstrumentation())
         composeTestRule.setContent {
             FileDownloaderApp()
         }
-        composeTestRule.onNodeWithText("許可する").assertExists()
-        composeTestRule.onNodeWithText("しない").assertExists()
-        composeTestRule.onNodeWithText("許可する").performClick()
+
         // 許可するボタンのindexを取得
         fun getAllowButtonIndex() =
             if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
@@ -100,12 +84,13 @@ class ImageAcquisitionTest {
         device.wait(Until.hasObject(By.res("TextField").depth(0)),3000)
         // 動かせるまで待機
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("許可する").assertDoesNotExist()
-        // 失敗通知
-        composeTestRule.onNodeWithTag("TextField").performTextInput("http://eee.aaaa.pop")
-        composeTestRule.onNodeWithText("ダウンロード開始").performClick()
-        composeTestRule.onNodeWithTag("ProgressBar").assertExists()
-        Thread.sleep(500)
+        // 画面終了を確認
+        composeTestRule.onNodeWithTag("TextField").assertExists()
+        //キーボード表示
+        composeTestRule.onNodeWithTag("TextField").performClick()
+        //キーボード非表示
+        composeTestRule.onNodeWithTag("FileDownloaderScreen").performClick()
+        composeTestRule.waitForIdle()
     }
 
 }

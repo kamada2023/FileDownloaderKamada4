@@ -68,6 +68,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.checkSelfPermission
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -90,7 +91,7 @@ private var notifySuccess = "ダウンロードが完了しました"
 private var notifyFailure = "画像取得に失敗しました"
 const val REQUEST_READ_MEDIA_IMAGES = 1
 const val REQUEST_READ_EXTERNAL_GROUP = 2
-var imageUri = if (Build.VERSION.SDK_INT >= 29) {
+var imageUri: Uri = if (Build.VERSION.SDK_INT >= 29) {
     MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
 } else { MediaStore.Images.Media.EXTERNAL_CONTENT_URI }
 
@@ -163,73 +164,28 @@ fun FileDownloaderApp(){
 
 @SuppressLint("ContextCastToActivity")
 @Composable
-fun PermissionDialog(
-    openAlertDialog: MutableState<Boolean>,
-    exitTheApplication: MutableState<Boolean>
-){
+fun PermissionDialog(){
     val context = LocalContext.current
-    Dialog(onDismissRequest = { }) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(375.dp)
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // 外部ストレージの書き込み権限がアプリに対して既に付与されているかを確認
+        if (checkSelfPermission(context,Manifest.permission.READ_MEDIA_IMAGES)
+            != PackageManager.PERMISSION_GRANTED
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(textAlign = TextAlign.Center, text ="ストレージへの\nアクセス許可")
-                Row(modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    TextButton(
-                        onClick = {
-                            try {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    // 外部ストレージの書き込み権限がアプリに対して既に付与されているかを確認
-                                    if (checkSelfPermission(context,Manifest.permission.READ_MEDIA_IMAGES)
-                                        != PackageManager.PERMISSION_GRANTED
-                                    ) {
-                                        // 書き込み権限が付与されていない場合はリクエストを行う
-                                        ActivityCompat.requestPermissions(
-                                            context as Activity,
-                                            arrayOf(Manifest.permission.READ_MEDIA_IMAGES),
-                                            REQUEST_READ_MEDIA_IMAGES
-                                        )
-                                    }
-                                }else{
-                                    // 権限が付与されていない場合はリクエストを行う
-                                    ActivityCompat.requestPermissions(
-                                        context as Activity,
-                                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                                        REQUEST_READ_EXTERNAL_GROUP
-                                    )
-                                }
-                                openAlertDialog.value = false
-                            } catch (error: SecurityException) {
-                                // ファイルに書き込み用のパーミッションが無い場合など
-                                error.printStackTrace()
-                            } catch (error: IOException) {
-                                // 何らかの原因で誤ってディレクトリを2回作成してしまった場合など
-                                error.printStackTrace()
-                            } catch (error: Exception) {
-                                error.printStackTrace()
-                            }
-                        }
-                    ) { Text(text = "許可する") }
-                    TextButton(
-                        onClick = {
-                            openAlertDialog.value = false
-                            //アクティビティ終了
-                            exitTheApplication.value = true
-                        }
-                    ) { Text(text = "しない") }
-                }
-            }
+            // 書き込み権限が付与されていない場合はリクエストを行う
+            ActivityCompat.requestPermissions(
+                context as Activity,
+                arrayOf(Manifest.permission.READ_MEDIA_IMAGES),
+                REQUEST_READ_MEDIA_IMAGES
+            )
         }
+    }else{
+        // 権限が付与されていない場合はリクエストを行う
+        ActivityCompat.requestPermissions(
+            context as Activity,
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.WRITE_EXTERNAL_STORAGE),
+            REQUEST_READ_EXTERNAL_GROUP
+        )
     }
 }
 
@@ -308,17 +264,19 @@ fun downloadImage(
 
             // 処理が終わったら、メインスレッドに切り替える。
             withContext(Dispatchers.Main) {
-
+                // プログレスバーを非表示
+                showDownloadImage.value = true
             }
         } catch (e: IOException) {
             e.printStackTrace()
+            // プログレスバーを非表示
+            showDownloadImage.value = true
         } catch (e: MalformedURLException) {
             e.printStackTrace()
+            // プログレスバーを非表示
+            showDownloadImage.value = true
         }
     }
-    // プログレスバーを非表示
-    showDownloadImage.value = true
-    return
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "Range")
@@ -360,7 +318,7 @@ fun FileDownloaderScreen() {
                 //パーミッションが許可されている
             }else {
                 //パーミッションが不許可である
-                PermissionDialog(openAlertDialog,exitTheApplication)
+                PermissionDialog()
             }
     }
 

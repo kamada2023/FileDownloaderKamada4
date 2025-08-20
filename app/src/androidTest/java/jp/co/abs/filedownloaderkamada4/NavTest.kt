@@ -2,7 +2,6 @@ package jp.co.abs.filedownloaderkamada4
 
 import android.os.Build
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,12 +25,7 @@ class NavTest {
         composeTestRule.setContent {
             FileDownloaderApp()
         }
-        if (composeTestRule.onNodeWithText("許可する").isDisplayed()){
-            composeTestRule.onNodeWithText("ストレージへの\nアクセス許可").assertExists()
-            composeTestRule.onNodeWithText("許可する").assertExists()
-            composeTestRule.onNodeWithText("しない").assertExists()
-            composeTestRule.onNodeWithText("許可する").performClick()
-        }
+
         // 許可するボタンのindexを取得
         fun getAllowButtonIndex() =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -53,8 +47,6 @@ class NavTest {
         }
         // 動かせるまで待機
         composeTestRule.waitForIdle()
-        // 画面終了を確認
-        composeTestRule.onNodeWithText("許可する").assertDoesNotExist()
     }
 
     @Test

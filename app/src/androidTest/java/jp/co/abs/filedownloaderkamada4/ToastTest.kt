@@ -36,7 +36,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -50,17 +49,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.printToLog
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.navigation.compose.NavHost
@@ -71,12 +65,8 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-//import androidx.test.rule.GrantPermissionRule
 import org.junit.Rule
 import org.junit.Test
-import java.net.URL
 
 class ToastTest {
 
@@ -127,7 +117,7 @@ class ToastTest {
                     //パーミッションが許可されている
                 }else {
                     //パーミッションが不許可である
-                    PermissionDialog(openAlertDialog,exitTheApplication)
+                    PermissionDialog()
                 }
         }
 
@@ -240,6 +230,7 @@ class ToastTest {
                         // プログレスバー表示
                         CircularProgressIndicator(
                             modifier = Modifier
+                                .testTag("ProgressBar")
                                 .align(Alignment.Center)
                                 .width(64.dp),
                             color = MaterialTheme.colorScheme.secondary,
@@ -265,10 +256,19 @@ class ToastTest {
 
     private fun downloadImageWithMock(urlEntered :String, showDownloadImage: MutableState<Boolean>){
         // 任意のURLと任意の値入力
-        if (urlEntered == "https://thumb.photo-ac.com/e5/e5a0c264175fb95f735396d5b8ac3287_t.jpeg"){
-            imageUri = ("content://media/external_primary/images/media/82").toUri()
+        when (urlEntered) {
+            "https://thumb.photo-ac.com/e5/e5a0c264175fb95f735396d5b8ac3287_t.jpeg" -> {
+                imageUri = ("content://media/external_primary/images/media/82").toUri()
+                showDownloadImage.value = true
+            }
+            "https://progress" -> {
+                //処理中のUI表示
+            }
+            else -> {
+                showDownloadImage.value = true
+            }
         }
-        showDownloadImage.value = true
+
     }
 
     @OptIn(ExperimentalComposeUiApi::class)
@@ -322,9 +322,6 @@ class ToastTest {
         }
         // ダイアログ処理
         val device = UiDevice.getInstance(getInstrumentation())
-        composeTestRule.onNodeWithText("許可する").assertExists()
-        composeTestRule.onNodeWithText("しない").assertExists()
-        composeTestRule.onNodeWithText("許可する").performClick()
         // 許可するボタンのindexを取得
         fun getAllowButtonIndex() =
             if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
@@ -346,7 +343,6 @@ class ToastTest {
         device.wait(Until.hasObject(By.res("TextField").depth(0)),3000)
         // 動かせるまで待機
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("許可する").assertDoesNotExist()
         // mock ダウンロード成功
         composeTestRule.onNodeWithTag("TextField",useUnmergedTree = true).performTextInput("https://thumb.photo-ac.com/e5/e5a0c264175fb95f735396d5b8ac3287_t.jpeg")
         composeTestRule.onNodeWithText("ダウンロード開始",useUnmergedTree = true).performClick()
@@ -406,10 +402,7 @@ class ToastTest {
         }
         // ダイアログ処理
         val device = UiDevice.getInstance(getInstrumentation())
-        if (composeTestRule.onNodeWithText("許可する").isDisplayed()){
-            composeTestRule.onNodeWithText("しない").isDisplayed()
-            composeTestRule.onNodeWithText("許可する").performClick()
-        }
+
         // 許可するボタンのindexを取得
         fun getAllowButtonIndex() =
             if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
@@ -431,11 +424,90 @@ class ToastTest {
         device.wait(Until.hasObject(By.res("TextField").depth(0)),3000)
         // 動かせるまで待機
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("許可する").assertDoesNotExist()
         // mock 失敗通知
         composeTestRule.onNodeWithTag("TextField").performTextInput("")
         composeTestRule.onNodeWithText("ダウンロード開始").performClick()
         // 判定
         composeTestRule.onNodeWithTag("${ToastStatus.FailureNotification.ordinal}",useUnmergedTree = true).assertExists()
+    }
+
+    @OptIn(ExperimentalComposeUiApi::class)
+    @Test
+    fun progressTest(){
+        // Toastが表示されたか？判定
+        composeTestRule.setContent {
+            val navController = rememberNavController()
+            var selectedDestination by remember { mutableIntStateOf(Nav.FileDownloaderScreen.ordinal) }
+            Scaffold(
+                modifier = Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
+                bottomBar = {
+                    NavigationBar {
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Filled.Done, contentDescription = "ダウンロード") },
+                            label = { Text(text = "ダウンロード") },
+                            selected = selectedDestination == Nav.FileDownloaderScreen.ordinal,
+                            onClick = {
+                                navController.navigate(Nav.FileDownloaderScreen.name)
+                                selectedDestination = Nav.FileDownloaderScreen.ordinal
+                            }
+                        )
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.List,
+                                    contentDescription = "履歴"
+                                )
+                            },
+                            label = { Text(text = "履歴") },
+                            selected = selectedDestination == Nav.HistoryScreen.ordinal,
+                            onClick = {
+                                navController.navigate(Nav.HistoryScreen.name)
+                                selectedDestination = Nav.HistoryScreen.ordinal
+                            }
+                        )
+                    }
+                }
+            ) { innerPadding ->
+                NavHost(
+                    navController = navController,
+                    startDestination = Nav.FileDownloaderScreen.name,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    composable(route = Nav.FileDownloaderScreen.name) { FileDownloaderScreenTest() }
+                    composable(route = Nav.HistoryScreen.name) { HistoryScreen() }
+                }
+            }
+        }
+        // ダイアログ処理
+        val device = UiDevice.getInstance(getInstrumentation())
+
+        // 許可するボタンのindexを取得
+        fun getAllowButtonIndex() =
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
+                1
+            }else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
+                0
+            }else {
+                1
+            }
+        // 認可ダイアログから許可するボタンのindexを指定してオブジェクトを取得
+        val arrowPermission = device.findObject(
+            UiSelector()
+                .clickable(true)
+                .index(getAllowButtonIndex())
+        )
+        // 取得したオブジェクトが画面上に存在すれば押下
+        if (arrowPermission.exists()){arrowPermission.click()}
+        // Activityの表示まで待つ等あれば待機する
+        device.wait(Until.hasObject(By.res("TextField").depth(0)),3000)
+        // 動かせるまで待機
+        composeTestRule.waitForIdle()
+        // mock 失敗通知
+        composeTestRule.onNodeWithTag("TextField").performTextInput("https://progress")
+        composeTestRule.onNodeWithText("ダウンロード開始").performClick()
+        // 判定
+        composeTestRule.onNodeWithTag("ProgressBar",useUnmergedTree = true).assertExists()
     }
 }
